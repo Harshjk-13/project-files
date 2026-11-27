@@ -1,0 +1,38 @@
+name: ExamPulse CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-verify-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install & Build Frontend
+        run: |
+          cd client
+          npm ci
+          npm run build
+
+      - name: Install & Verify Backend Syntax
+        run: |
+          cd server
+          npm ci
+          node --check index.js
+
+      - name: Build Production Docker Image
+        run: docker build -t exampulse:latest .
+
+      - name: Trigger Render / Cloud Deploy Hook
+        if: github.ref == 'refs/heads/main' && secrets.DEPLOY_HOOK_URL != ''
+        run: curl -X POST "${{ secrets.DEPLOY_HOOK_URL }}"
